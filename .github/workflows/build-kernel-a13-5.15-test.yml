@@ -121,20 +121,16 @@ jobs:
           echo "Creating folder for configuration: $CONFIG..."
           mkdir -p "$CONFIG"
           cd "$CONFIG"
-          
           # 初始化并同步内核源代码
           echo "Initializing and syncing kernel source..."
           FORMATTED_BRANCH="${{ matrix.android_version }}-${{ matrix.kernel_version }}-${{ matrix.os_patch_level }}"
-          $REPO init --depth=1 --u https://android.googlesource.com/kernel/manifest -b common-${FORMATTED_BRANCH} --repo-rev=v2.16
-          
-          REMOTE_BRANCH=$(git ls-remote https://android.googlesource.com/kernel/common ${FORMATTED_BRANCH})
+          $REPO init --depth=1 --u https://github.com/ch6vip/android_gki_kernel_5.15.git -b common-${FORMATTED_BRANCH} --repo-rev=v2.16
+
+          REMOTE_BRANCH=$(git ls-remote https://github.com/ch6vip/android_gki_kernel_5.15.git common-${FORMATTED_BRANCH})
           DEFAULT_MANIFEST_PATH=.repo/manifests/default.xml
 
-          # 检查分支是否已弃用
-          if grep -q deprecated <<< $REMOTE_BRANCH; then
-            echo "Found deprecated branch: $FORMATTED_BRANCH"
-            sed -i "s/\"${FORMATTED_BRANCH}\"/\"deprecated\/${FORMATTED_BRANCH}\"/g" $DEFAULT_MANIFEST_PATH
-          fi
+          # 同步仓库
+          $REPO sync
 
           # 同步仓库并应用补丁
           $REPO --version
