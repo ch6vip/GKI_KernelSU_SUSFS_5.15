@@ -1,4 +1,4 @@
-name: Build and Release GKI Kernels
+name: Build 和 Release GKI Kernels
 
 permissions:
   contents: write  # Allow writing to repository contents (for pushing tags)
@@ -21,6 +21,11 @@ on:
 jobs:
   build-kernel-a13-5-15:
     uses: ./.github/workflows/build-kernel-a13-5.15.yml
+    secrets: inherit
+    if: ${{ inputs.build_a13 }}
+
+  build-kernel-a13-5-15-test:
+    uses: ./.github/workflows/build-kernel-a13-5.15-test.yml
     secrets: inherit
     if: ${{ inputs.build_a13 }}
 
@@ -74,7 +79,7 @@ jobs:
         uses: actions/checkout@v3
 
       # Get the Latest Tag from GitHub
-      - name: Generate and Create New Tag
+      - name: Generate 和 Create New Tag
         run: |
             # Fetch the latest tag from GitHub (this is the latest tag based on the GitHub API)
             LATEST_TAG=$(gh api repos/$REPO_OWNER/$REPO_NAME/tags --jq '.[0].name')
