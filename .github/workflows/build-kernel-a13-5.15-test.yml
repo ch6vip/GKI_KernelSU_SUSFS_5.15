@@ -47,7 +47,7 @@ jobs:
             os_patch_level: "lts"
 
     steps:
-      - name: Maximize build space
+      - name: 最大化构建空间
         uses: easimon/maximize-build-space@master
         with:
           root-reserve-mb: 8192
@@ -58,7 +58,7 @@ jobs:
           remove-haskell: 'true'
           remove-codeql: 'true'
 
-      - name: Set CONFIG Environment Variable
+      - name: 设置CONFIG环境变量
         run: |
           # Set CONFIG dynamically based on matrix values
           CONFIG="${{ matrix.android_version }}-${{ matrix.kernel_version }}-${{ matrix.sub_level }}"
@@ -68,7 +68,7 @@ jobs:
           
           echo "CONFIG set to: $CONFIG"
 
-      - name: Download prebuilt toolchain
+      - name: 下载预构建的工具链
         run: |
           AOSP_MIRROR=https://android.googlesource.com
           BRANCH=main-kernel-build-2024
@@ -79,7 +79,7 @@ jobs:
           echo "MKBOOTIMG=$GITHUB_WORKSPACE/mkbootimg/mkbootimg.py" >> $GITHUB_ENV
           echo "UNPACK_BOOTIMG=$GITHUB_WORKSPACE/mkbootimg/unpack_bootimg.py" >> $GITHUB_ENV
 
-      - name: Set boot sign key
+      - name: 设置启动标志密钥
         env:
           BOOT_SIGN_KEY: ${{ secrets.BOOT_SIGN_KEY }}
         run: |
@@ -91,7 +91,7 @@ jobs:
             exit 1
           fi
           
-      - name: Install Repo
+      - name: 安装Repo
         run: |
           # Install dependencies
           mkdir -p ./git-repo
@@ -99,30 +99,30 @@ jobs:
           chmod a+rx ./git-repo/repo
           echo "REPO=$GITHUB_WORKSPACE/./git-repo/repo" >> $GITHUB_ENV
 
-      - name: Clone AnyKernel3 and Other Dependencies
+      - name: 克隆AnyKernel3和其他依赖项
         run: |
           echo "Cloning AnyKernel3 and other dependencies..."
     
-          # Define the branch names using the matrix values
+          # 使用矩阵值定义分支名称
           ANYKERNEL_BRANCH="${{ matrix.android_version }}-${{ matrix.kernel_version }}"
           SUSFS_BRANCH="gki-${{ matrix.android_version }}-${{ matrix.kernel_version }}"
 
-          # Debug print the branches
+          # 调试打印分支
           echo "Using branch for AnyKernel3: $ANYKERNEL_BRANCH"
           echo "Using branch for SUSFS: $SUSFS_BRANCH"
 
-          # Clone repositories using the branch names
+          # 使用分支名称克隆存储库
           git clone https://github.com/TheWildJames/AnyKernel3.git -b "$ANYKERNEL_BRANCH"
           git clone https://gitlab.com/simonpunk/susfs4ksu.git -b "$SUSFS_BRANCH"
           git clone https://github.com/TheWildJames/kernel_patches.git
       
-      - name: Initialize and Sync Kernel Source
+      - name: 初始化并同步内核源代码
         run: |
           echo "Creating folder for configuration: $CONFIG..."
           mkdir -p "$CONFIG"
           cd "$CONFIG"
           
-          # Initialize and sync kernel source
+          # 初始化并同步内核源代码
           echo "Initializing and syncing kernel source..."
           FORMATTED_BRANCH="${{ matrix.android_version }}-${{ matrix.kernel_version }}-${{ matrix.os_patch_level }}"
           $REPO init --depth=1 --u https://android.googlesource.com/kernel/manifest -b common-${FORMATTED_BRANCH} --repo-rev=v2.16
@@ -130,17 +130,17 @@ jobs:
           REMOTE_BRANCH=$(git ls-remote https://android.googlesource.com/kernel/common ${FORMATTED_BRANCH})
           DEFAULT_MANIFEST_PATH=.repo/manifests/default.xml
 
-          # Check if branch is deprecated
+          # 检查分支是否已弃用
           if grep -q deprecated <<< $REMOTE_BRANCH; then
             echo "Found deprecated branch: $FORMATTED_BRANCH"
             sed -i "s/\"${FORMATTED_BRANCH}\"/\"deprecated\/${FORMATTED_BRANCH}\"/g" $DEFAULT_MANIFEST_PATH
           fi
 
-          # Sync repo and apply patches
+          # 同步仓库并应用补丁
           $REPO --version
           $REPO --trace sync -c -j$(nproc --all) --no-tags --fail-fast
 
-      - name: Add KernelSU
+      - name: 添加 KernelSU
         run: |
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG"
@@ -148,14 +148,14 @@ jobs:
           echo "Adding KernelSU..."
           curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -
 
-      - name: Apply SUSFS Patches
+      - name: 应用SUSFS补丁
         run: |
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG"
           
           echo "Applying SUSFS patches..."
           
-          # Copy SUSFS patches
+          # 复制SUSFS补丁
           cp ../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./KernelSU-Next/
           cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-${{ matrix.android_version }}-${{ matrix.kernel_version }}.patch ./common/
           cp ../susfs4ksu/kernel_patches/fs/* ./common/fs/
@@ -163,14 +163,14 @@ jobs:
 
           cd ./KernelSU-Next
           
-          # Apply SUSFS patch for KernelSU
+          # 为 KernelSU 应用 SUSFS 补丁
           patch -p1 --forward < 10_enable_susfs_for_ksu.patch || true
           
-          # Change to common directory and apply SUSFS patch
+          # 更改公共目录并应用 SUSFS 补丁
           cd ../common
           patch -p1 < 50_add_susfs_in_gki-${{ matrix.android_version }}-${{ matrix.kernel_version }}.patch || true
           
-      - name: Apply Next-SUSFS Patches
+      - name: 应用 Next-SUSFS 补丁
         run: |
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG"
@@ -183,7 +183,7 @@ jobs:
           cp ../kernel_patches/selinux.c_fix.patch ./
           patch -p1 -F 3 < selinux.c_fix.patch
 
-      - name: Apply Hide Stuff Patches
+      - name: 应用 Hide Stuff 补丁
         run: |
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG/common"
@@ -191,7 +191,7 @@ jobs:
           cp ../../kernel_patches/69_hide_stuff.patch ./
           patch -p1 -F 3 < 69_hide_stuff.patch || true
 
-      - name: Add SUSFS Configuration Settings
+      - name: 添加 SUSFS 配置设置
         run: |
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG"
@@ -217,25 +217,25 @@ jobs:
           echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_KSU_SUSFS_SUS_SU=y" >> ./common/arch/arm64/configs/gki_defconfig
           
-          # Add additional tmpfs config setting
+          # 添加额外的 tmpfs 配置设置
           echo "CONFIG_TMPFS_XATTR=y" >> ./common/arch/arm64/configs/gki_defconfig
 
-      - name: Run sed and perl Commands
+      - name: 运行 sed 和 perl 命令
         run: |
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG"
           
           echo "Running sed commands..."
           
-          # Run sed commands for modifications
+          # 运行 sed 命令进行修改
           sed -i 's/check_defconfig//' ./common/build.config.gki
           sed -i 's/-dirty//' ./common/scripts/setlocalversion
           sed -i '$s|echo "\$res"|echo "\$res-Wild+"|' ./common/scripts/setlocalversion
           
-          # Run perl command to modify UTS_VERSION
+          # 运行 perl 命令修改 UTS_VERSION
           perl -pi -e 's{UTS_VERSION="\$\(echo \$UTS_VERSION \$CONFIG_FLAGS \$TIMESTAMP \| cut -b -\$UTS_LEN\)"}{UTS_VERSION="#1 SMP PREEMPT Sat Apr 20 04:20:00 UTC 2024"}' ./common/scripts/mkcompile_h
 
-      - name: Build the Kernel
+      - name: 构建内核
         run: |
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG"
@@ -243,7 +243,7 @@ jobs:
           echo "Building the kernel..."
           LTO=thin BUILD_CONFIG=common/build.config.gki.aarch64 build/build.sh
 
-      - name: Create Bootimgs Folder and Copy Images
+      - name: 创建 bootimgs 文件夹并复制图像
         run: |
           echo "Changing to configuration directory: $CONFIG..."
           mkdir bootimgs
@@ -254,10 +254,10 @@ jobs:
           cp ./$CONFIG/out/${{ matrix.android_version }}-${{ matrix.kernel_version }}/dist/Image ./
           cp ./$CONFIG/out/${{ matrix.android_version }}-${{ matrix.kernel_version }}/dist/Image.lz4 ./
           
-          # Create gzip of the Image file
+          # 创建 Image 文件的 gzip
           gzip -n -k -f -9 ./Image > ./Image.gz
 
-      - name: Unpack boot.img and Build Kernels
+      - name: 解压缩 boot.img 并构建内核
         run: |
           cd bootimgs
           
@@ -279,12 +279,12 @@ jobs:
           $AVBTOOL add_hash_footer --partition_name boot --partition_size $((64 * 1024 * 1024)) --image boot-lz4.img --algorithm SHA256_RSA2048 --key $BOOT_SIGN_KEY_PATH
           cp ./boot-lz4.img ../${{ matrix.kernel_version }}.${{ matrix.sub_level }}-${{ matrix.android_version }}-${{ matrix.os_patch_level }}-boot-lz4.img
 
-      - name: Create ZIP Files for Different Formats
+      - name: 创建不同格式的 ZIP 文件
         run: |
           echo "Creating zip files for all formats..."
           cd ./AnyKernel3
           
-          # Create and upload zip for each format
+          # 为每种格式创建并上传 zip 文件
           ZIP_NAME="${{ matrix.kernel_version }}.${{ matrix.sub_level }}-${{ matrix.android_version }}-${{ matrix.os_patch_level }}-AnyKernel3.zip"
           echo "Creating zip file: $ZIP_NAME..."
           mv ../Image ./Image
