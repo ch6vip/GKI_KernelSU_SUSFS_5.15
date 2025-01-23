@@ -11,6 +11,11 @@ on:
         description: 'Build Android 13 kernel?'
         required: true
         type: boolean
+        默认: true
+      build_a13_test:
+        description: 'Build Android 13 kernel?_test'
+        required: true
+        type: boolean
         default: true
       make_release:
         description: 'Do you want to create a release?'
