@@ -95,11 +95,30 @@ jobs:
           git clone https://github.com/TheWildJames/AnyKernel3.git -b "$ANYKERNEL_BRANCH"
           git clone https://gitlab.com/simonpunk/susfs4ksu.git -b "$SUSFS_BRANCH"
           git clone https://github.com/TheWildJames/kernel_patches.git
-
-      - name: 克隆内核源码
+      
+      - name: 初始化并同步内核源代码
         run: |
-          echo "Cloning kernel source..."
-          git clone https://github.com/ch6vip/android_gki_kernel_5.15.git -b main "$CONFIG"
+          echo "Creating folder for configuration: $CONFIG..."
+          mkdir -p "$CONFIG"
+          cd "$CONFIG"
+          
+          # 初始化并同步内核源代码
+          echo "Initializing and syncing kernel source..."
+          FORMATTED_BRANCH="${{ matrix.android_version }}-${{ matrix.kernel_version }}-${{ matrix.os_patch_level }}"
+          $REPO init --depth=1 --u https://android.googlesource.com/kernel/manifest -b common-${FORMATTED_BRANCH} --repo-rev=v2.16
+          
+          REMOTE_BRANCH=$(git ls-remote https://android.googlesource.com/kernel/common ${FORMATTED_BRANCH})
+          DEFAULT_MANIFEST_PATH=.repo/manifests/default.xml
+
+          # 检查分支是否已弃用
+          if grep -q deprecated <<< $REMOTE_BRANCH; then
+            echo "Found deprecated branch: $FORMATTED_BRANCH"
+            sed -i "s/\"${FORMATTED_BRANCH}\"/\"deprecated\/${FORMATTED_BRANCH}\"/g" $DEFAULT_MANIFEST_PATH
+          fi
+
+          # 同步仓库并应用补丁
+          $REPO --version
+          $REPO --trace sync -c -j$(nproc --all) --no-tags --fail-fast
 
       - name: 添加 KernelSU
         run: |
@@ -109,19 +128,13 @@ jobs:
           echo "Adding KernelSU..."
           curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -
 
-      - name: 创建必要的目录
-        run: |
-          echo "Creating necessary directories..."
-          cd "$CONFIG"
-          mkdir -p ./common ./KernelSU-Next
-
       - name: 应用SUSFS补丁
         run: |
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG"
-
+          
           echo "Applying SUSFS patches..."
-
+          
           # 复制SUSFS补丁
           cp ../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./KernelSU-Next/
           cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-${{ matrix.android_version }}-${{ matrix.kernel_version }}.patch ./common/
@@ -129,14 +142,14 @@ jobs:
           cp ../susfs4ksu/kernel_patches/include/linux/* ./common/include/linux/
 
           cd ./KernelSU-Next
-
+          
           # 为 KernelSU 应用 SUSFS 补丁
           patch -p1 --forward < 10_enable_susfs_for_ksu.patch || true
-
+          
           # 更改公共目录并应用 SUSFS 补丁
           cd ../common
           patch -p1 < 50_add_susfs_in_gki-${{ matrix.android_version }}-${{ matrix.kernel_version }}.patch || true
-
+          
       - name: 应用 Next-SUSFS 补丁
         run: |
           echo "Changing to configuration directory: $CONFIG..."
@@ -200,7 +213,7 @@ jobs:
           sed -i '$s|echo "\$res"|echo "\$res-Wild+"|' ./common/scripts/setlocalversion
           
           # 运行 perl 命令修改 UTS_VERSION
-          perl -pi -e 's{UTS_VERSION="\$\(echo \$UTS_VERSION \$CONFIG_FLAGS \$TIMESTAMP \| cut -b -\$UTS_LEN\)"}{UTS_VERSION="#1 SMP PREEMPT Sat Apr 20 04:20:00 UTC 2024"}' ./common/scripts/mkcompile_[...]
+          perl -pi -e 's{UTS_VERSION="\$\(echo \$UTS_VERSION \$CONFIG_FLAGS \$TIMESTAMP \| cut -b -\$UTS_LEN\)"}{UTS_VERSION="#1 SMP PREEMPT Sat Apr 20 04:20:00 UTC 2024"}' ./common/scripts/mkcompile_h
 
       - name: 构建内核
         run: |
