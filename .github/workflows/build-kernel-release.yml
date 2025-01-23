@@ -11,7 +11,7 @@ on:
         description: 'Build Android 13 kernel?'
         required: true
         type: boolean
-        默认: true
+        default: true
       build_a13_test:
         description: 'Build Android 13 kernel?_test'
         required: true
