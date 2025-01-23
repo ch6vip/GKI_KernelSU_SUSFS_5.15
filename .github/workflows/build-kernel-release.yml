@@ -32,7 +32,7 @@ jobs:
   build-kernel-a13-5-15-test:
     uses: ./.github/workflows/build-kernel-a13-5.15-test.yml
     secrets: inherit
-    if: ${{ inputs.build_a13 }}
+    if: ${{ inputs.build_a13_test }}
 
   trigger-release:
     runs-on: ubuntu-latest
