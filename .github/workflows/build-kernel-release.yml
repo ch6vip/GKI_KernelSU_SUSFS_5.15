@@ -17,6 +17,11 @@ on:
         required: true
         type: boolean
         default: true
+      build_custom_kernel:
+        description: 'Build custom kernel from ch6vip/android_gki_kernel_5.15?'
+        required: true
+        type: boolean
+        default: false
       make_release:
         description: 'Do you want to create a release?'
         required: true
@@ -34,7 +39,144 @@ jobs:
     secrets: inherit
     if: ${{ inputs.build_a13_test }}
 
+  build-custom-kernel:
+    runs-on: ubuntu-latest
+    if: ${{ inputs.build_custom_kernel }}
+    steps:
+      - name: Checkout custom kernel repository
+        uses: actions/checkout@v3
+        with:
+          repository: ch6vip/android_gki_kernel_5.15
+          path: custom-kernel
+
+      - name: Set up build environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libncurses-dev bison flex libssl-dev libelf-dev
+
+      - name: Build custom kernel
+        run: |
+          cd custom-kernel
+          make defconfig
+          make -j$(nproc)
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: custom-kernel
+          path: custom-kernel/arch/arm64/boot/
+
   trigger-release:
+    runs-on: ubuntu-latest
+    needs:
+        - build-kernel-a13-5-15
+        - build-custom-kernel
+    if: ${{ inputs.make_release }}
+    env:
+      REPO_OWNER: TheWildJames
+      REPO_NAME: GKI_KernelSU_SUSFS
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      RELEASE_NAME: "*TEST BUILD* GKI Kernels With KernelSU Next & SUSFS v1.5.3 *TEST BUILD*"
+      RELEASE_NOTES: |
+        This release contains KernelSU Next and SUSFS v1.5.3
+        
+        Module: 
+        -> https://github.com/sidex15/ksu_module_susfs
+        
+        Official Manager:
+        -> https://github.com/tiann/KernelSU
+        
+        Non-Official Managers:
+        -> https://github.com/rifsxd/KernelSU-Next
+        -> https://github.com/backslashxx/KernelSU
+        -> https://github.com/rsuntk/KernelSU
+        -> https://github.com/5ec1cff/KernelSU
+        -> https://github.com/silvzr/KernelSU
+        -> https://github.com/sidex15/KernelSU
+        
+        Features:
+        [+] KernelSU-Next
+        [+] SUSFS v1.5.3
+        [+] Wireguard Support
+        [+] Maphide LineageOS Detections
+        [+] Futile Maphide for jit-zygote-cache Detections
+        [+] Magic Mount Support
+
+        Special thanks to the following people for their contributions!
+        This helps me alot! <3
+
+        simonpunk - Created SUSFS!
+        sidex15 - Created module!
+        backslashxx - Helped with patches!
+        幕落 - Donation!
+
+        If you have contributed and are not here please remind me!
+    steps:
+      # Checkout the code
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Get the Latest Tag from GitHub
+      - name: Generate 和 Create New Tag
+        run: |
+            # Fetch the latest tag from GitHub (this is the latest tag based on the GitHub API)
+            LATEST_TAG=$(gh api repos/$REPO_OWNER/$REPO_NAME/tags --jq '.[0].name')
+            if [ -z "$LATEST_TAG" ]; then
+              LATEST_TAG="v1.5.3-0"  # Default to v1.5.3-0 if no tag exists
+            fi
+
+            # Increment the suffix (e.g., v1.5.3-0 becomes v1.5.3-1)
+            NEW_TAG=$(echo "$LATEST_TAG" | awk -F- '{suffix=$2; if (!suffix) suffix=0; suffix++; printf "%s-%d", $1, suffix}')
+    
+            # Output the new tag to be used
+            echo "New tag: $NEW_TAG"
+    
+            # Set the new tag as an environment variable to be used in later steps
+            echo "NEW_TAG=${NEW_TAG}" >> $GITHUB_ENV
+
+            # Create the tag in the repository
+            git tag $NEW_TAG
+            git push origin $NEW_TAG
+
+      # Download Artifacts for A12 (Only if A12 Build is successful or input is true or empty)
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./downloaded-artifacts
+
+      # Create GitHub Release and upload files if make_release is true
+      - name: Create GitHub Release
+        uses: actions/create-release@v1
+        with:
+          tag_name: ${{ env.NEW_TAG }}  # Use the generated tag for the release
+          prerelease: true  # Mark the release as a pre-release
+          release_name: ${{ env.RELEASE_NAME }}  # Pass the RELEASE_NAME to the action
+          body: ${{ env.RELEASE_NOTES }}  # Pass the RELEASE_NOTES to the action
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Release Assets Dynamically
+        run: |
+          # Loop through all files in the downloaded-artifacts directory
+          for file in ./downloaded-artifacts/kernel-*/*; do
+              # Skip directories
+              if [ -d "$file" ]; then
+                  continue
+              fi
+
+              # Upload the file to the GitHub release
+              echo "Uploading $file..."
+              gh release upload ${{ env.NEW_TAG }} "$file"
+          done
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NEW_TAG: ${{ env.NEW_TAG }}
+
+      # Display Files Uploaded
+      - name: Display Files Uploaded
+        run: |
+          echo "GitHub release created with the following files:"
+          ls ./downloaded-artifacts/**/*  trigger-release:
     runs-on: ubuntu-latest
     needs:
         - build-kernel-a13-5-15
