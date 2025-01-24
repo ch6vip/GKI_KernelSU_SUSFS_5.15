@@ -79,7 +79,7 @@ jobs:
           chmod a+rx ./git-repo/repo
           echo "REPO=$GITHUB_WORKSPACE/./git-repo/repo" >> $GITHUB_ENV
 
-      - name: Clone AnyKernel3 and Other Dependencies
+      - name: Clone AnyKernel3 和 Other Dependencies
         run: |
           echo "Cloning AnyKernel3 and other dependencies..."
     
@@ -96,7 +96,7 @@ jobs:
           git clone https://gitlab.com/simonpunk/susfs4ksu.git -b "$SUSFS_BRANCH"
           git clone https://github.com/TheWildJames/kernel_patches.git
       
-      - name: Initialize and Sync Kernel Source
+      - name: Initialize 和 Sync Kernel Source
         run: |
           echo "Creating folder for configuration: $CONFIG..."
           mkdir -p "$CONFIG"
@@ -200,7 +200,7 @@ jobs:
           # Add additional tmpfs config setting
           echo "CONFIG_TMPFS_XATTR=y" >> ./common/arch/arm64/configs/gki_defconfig
 
-      - name: Run sed and perl Commands
+      - name: Run sed 和 perl Commands
         run: |
           echo "Changing to configuration directory: $CONFIG..."
           cd "$CONFIG"
@@ -210,7 +210,7 @@ jobs:
           # Run sed commands for modifications
           sed -i 's/check_defconfig//' ./common/build.config.gki
           sed -i 's/-dirty//' ./common/scripts/setlocalversion
-          sed -i '$s|echo "\$res"|echo "\$res-Wild+"|' ./common/scripts/setlocalversion
+          sed -i '$s|echo "\$res"|echo "-5.15.149-android13-8-00010-gc2e0ba41ba85-ab12040008"|' ./common/scripts/setlocalversion
           
           # Run perl command to modify UTS_VERSION
           perl -pi -e 's{UTS_VERSION="\$\(echo \$UTS_VERSION \$CONFIG_FLAGS \$TIMESTAMP \| cut -b -\$UTS_LEN\)"}{UTS_VERSION="#1 SMP PREEMPT Sat Apr 20 04:20:00 UTC 2024"}' ./common/scripts/mkcompile_h
@@ -223,7 +223,7 @@ jobs:
           echo "Building the kernel..."
           LTO=thin BUILD_CONFIG=common/build.config.gki.aarch64 build/build.sh
 
-      - name: Create Bootimgs Folder and Copy Images
+      - name: Create Bootimgs Folder 和 Copy Images
         run: |
           echo "Changing to configuration directory: $CONFIG..."
           mkdir bootimgs
@@ -237,7 +237,7 @@ jobs:
           # Create gzip of the Image file
           gzip -n -k -f -9 ./Image > ./Image.gz
 
-      - name: Unpack boot.img and Build Kernels
+      - name: Unpack boot.img 和 Build Kernels
         run: |
           cd bootimgs
           
