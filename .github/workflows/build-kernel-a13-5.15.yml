@@ -210,7 +210,7 @@ jobs:
           # Run sed commands for modifications
           sed -i 's/check_defconfig//' ./common/build.config.gki
           sed -i 's/-dirty//' ./common/scripts/setlocalversion
-          sed -i '$s|echo "\$res"|echo "-5.15.149-android13-8-00010-gc2e0ba41ba85-ab12040008"|' ./common/scripts/setlocalversion
+          sed -i '$s|echo "\$res"|echo "-android13-8-00010-gc2e0ba41ba85-ab12040008"|' ./common/scripts/setlocalversion
           
           # Run perl command to modify UTS_VERSION
           perl -pi -e 's{UTS_VERSION="\$\(echo \$UTS_VERSION \$CONFIG_FLAGS \$TIMESTAMP \| cut -b -\$UTS_LEN\)"}{UTS_VERSION="#1 SMP PREEMPT Sat Apr 20 04:20:00 UTC 2024"}' ./common/scripts/mkcompile_h
